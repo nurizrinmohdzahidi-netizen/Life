@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Life Flow — Demo</title>
+  <style>
+    body { font-family: sans-serif; padding: 20px; max-width: 600px; margin: auto; }
+    .stats { margin-bottom: 20px; }
+    .actions button { margin: 5px; }
+    #slots { margin: 20px 0; }
+    #saveLoad { margin-top: 30px; }
+  </style>
+</head>
+<body>
+  <h1>Life Flow Demo</h1>
+  <div class="stats">
+    <div>Day: <span id="day">1</span></div>
+    <div>Energy: <span id="energy">100</span></div>
+    <div>Hunger: <span id="hunger">0</span></div>
+    <div>Money: $<span id="money">50</span></div>
+    <div>Mood: <span id="mood">50</span></div>
+  </div>
+
+  <div id="slots">
+    <div>Choose an action:</div>
+    <button onclick="actionSlot('work')">Work</button>
+    <button onclick="actionSlot('eat')">Eat</button>
+    <button onclick="actionSlot('rest')">Rest</button>
+    <button onclick="actionSlot('social')">Socialize</button>
+  </div>
+
+  <div id="message" style="margin-top:20px;"></div>
+
+  <div id="saveLoad">
+    <button onclick="saveGame()">Save</button>
+    <button onclick="loadGame()">Load</button>
+    <button onclick="resetGame()">Reset</button>
+  </div>
+
+<script>
+  let state = {
+    day: 1,
+    energy: 100,
+    hunger: 0,
+    money: 50,
+    mood: 50,
+    slotsUsed: 0,
+    maxSlots: 3
+  };
+
+  function updateDisplay() {
+    document.getElementById('day').innerText = state.day;
+    document.getElementById('energy').innerText = state.energy;
+    document.getElementById('hunger').innerText = state.hunger;
+    document.getElementById('money').innerText = state.money.toFixed(2);
+    document.getElementById('mood').innerText = state.mood;
+  }
+
+  function randomEvent() {
+    let r = Math.random();
+    if (r < 0.2) {
+      // 20% chance something happens
+      let ev = Math.random();
+      if (ev < 0.5) {
+        state.energy = Math.max(0, state.energy - 15);
+        document.getElementById('message').innerText += ' You caught a cold — lose 15 energy.\n';
+      } else {
+        let bonus = 10 + Math.floor(Math.random() * 20);
+        state.money += bonus;
+        document.getElementById('message').innerText += ` Unexpected bonus: you got $${bonus}.\n`;
+      }
+    }
+  }
+
+  function endDayEffects() {
+    // Hunger penalty
+    if (state.hunger > 80) {
+      state.energy = Math.max(0, state.energy - 10);
+      state.mood = Math.max(0, state.mood - 10);
+    }
+    // Mood penalty for low energy
+    if (state.energy < 20) {
+      state.mood = Math.max(0, state.mood - 5);
+    }
+  }
+
+  function nextDay() {
+    state.day += 1;
+    state.slotsUsed = 0;
+    // small hunger gain each new day
+    state.hunger = Math.min(100, state.hunger + 10);
+    randomEvent();
+    endDayEffects();
+    if (state.energy <= 0) {
+      document.getElementById('message').innerText += ' You collapsed from exhaustion. Game Over.';
+      disableSlots();
+    }
+    updateDisplay();
+  }
+
+  function actionSlot(act) {
+    if (state.slotsUsed >= state.maxSlots) {
+      document.getElementById('message').innerText = 'No more actions today — advancing to next day...';
+      nextDay();
+      return;
+    }
+    state.slotsUsed += 1;
+    let msg = '';
+
+    switch(act) {
+      case 'work':
+        if (state.energy >= 20) {
+          state.money += 20;
+          state.energy -= 20;
+          state.hunger += 10;
+          msg = 'You worked and earned $20.';
+        } else {
+          msg = "Too tired to work.";
+        }
+        break;
+      case 'eat':
+        if (state.money >= 5) {
+          state.money -= 5;
+          state.hunger = Math.max(0, state.hunger - 30);
+          msg = 'You ate and reduced hunger.';
+        } else {
+          msg = "Not enough money to eat.";
+        }
+        break;
+      case 'rest':
+        state.energy = Math.min(100, state.energy + 40);
+        state.hunger += 10;
+        msg = 'You rested and recovered energy.';
+        break;
+      case 'social':
+        if (state.energy >= 15 && state.money >= 5) {
+          state.energy -= 15;
+          state.money -= 5;
+          state.mood = Math.min(100, state.mood + 20);
+          state.hunger += 5;
+          msg = 'You socialized and improved mood.';
+        } else {
+          msg = "Too tired or too broke to socialize.";
+        }
+        break;
+    }
+
+    document.getElementById('message').innerText = msg 
+      + ` (Slot ${state.slotsUsed}/${state.maxSlots})`;
+
+    updateDisplay();
+
+    if (state.slotsUsed >= state.maxSlots) {
+      document.getElementById('message').innerText += '\nAll slots used — next day.';
+      nextDay();
+    }
+  }
+
+  function disableSlots() {
+    document.querySelectorAll('#slots button').forEach(b => b.disabled = true);
+  }
+
+  function saveGame() {
+    localStorage.setItem('lifeFlowState', JSON.stringify(state));
+    alert('Game saved!');
+  }
+  function loadGame() {
+    let s = localStorage.getItem('lifeFlowState');
+    if (s) {
+      state = JSON.parse(s);
+      updateDisplay();
+      alert('Game loaded!');
+    } else {
+      alert('No saved game found.');
+    }
+  }
+  function resetGame() {
+    if (confirm('Reset game?')) {
+      state = {
+        day: 1,
+        energy: 100,
+        hunger: 0,
+        money: 50,
+        mood: 50,
+        slotsUsed: 0,
+        maxSlots: 3
+      };
+      updateDisplay();
+      document.getElementById('message').innerText = '';
+      document.querySelectorAll('#slots button').forEach(b => b.disabled = false);
+    }
+  }
+
+  // initialize
+  updateDisplay();
+</script>
+</body>
+</html>
